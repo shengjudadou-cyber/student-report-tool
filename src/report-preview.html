@@ -75,30 +75,6 @@
 
     body { padding-bottom: calc(1.5rem + env(safe-area-inset-bottom)); }
 
-    /* 折りたたみ共通 */
-    details.collapsible summary {
-      list-style: none;
-      cursor: pointer;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    details.collapsible summary::-webkit-details-marker { display: none; }
-    details.collapsible .chevron {
-      transition: transform 0.25s ease;
-      flex-shrink: 0;
-    }
-    details.collapsible[open] .chevron { transform: rotate(180deg); }
-    details.collapsible .detail-body {
-      overflow: hidden;
-      max-height: 0;
-      opacity: 0;
-      transition: max-height 0.35s ease, opacity 0.28s ease;
-    }
-    details.collapsible[open] .detail-body {
-      max-height: 500px;
-      opacity: 1;
-    }
-
     @media print {
       @page { size: A4; margin: 15mm 12mm; }
       body { background: white !important; padding: 0 !important; }
@@ -135,38 +111,13 @@
         </div>
       </section>
 
-      <!-- 評価ヒーロー（折りたたみ・評価は開くまで非表示） -->
-      <section class="rounded-2xl card-shadow mb-4 sm:mb-6 border-2 overflow-hidden bg-gradient-to-br from-stone-100 to-stone-200 border-stone-300"
+      <!-- 評価ヒーロー -->
+      <section class="rounded-2xl card-shadow px-5 py-6 mb-4 sm:mb-6 grade-A border-2 text-center"
                aria-label="今回の評価">
-        <details class="collapsible grade-reveal">
-          <summary class="flex items-center gap-3 px-5 py-4">
-            <div class="flex-1 flex items-center gap-3">
-              <div class="w-12 h-12 rounded-full bg-stone-300/60 flex items-center justify-center shrink-0" aria-hidden="true">
-                <svg class="w-6 h-6 text-stone-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="text-xs font-bold tracking-widest text-stone-500 leading-tight">今回の評価</p>
-                <p class="text-sm font-semibold text-stone-400 leading-tight">タップして確認する</p>
-              </div>
-            </div>
-            <svg class="chevron w-5 h-5 text-stone-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </summary>
-          <div class="detail-body">
-            <div class="grade-A border-t border-amber-300/40 px-5 py-6 text-center">
-              <p class="text-xs font-bold tracking-widest text-amber-700/80 mb-2">今回の評価</p>
-              <div class="text-8xl font-black leading-none mb-3 text-amber-800" role="img" aria-label="評価A">A</div>
-              <p class="font-bold text-xl text-amber-900 mb-2">分析・変容</p>
-              <p class="text-sm text-amber-800/80 leading-[1.9] max-w-xs mx-auto">
-                メタ認知レベルの振り返りができています。<br>
-                <strong>「なぜそうなったか」「次にどうするか」</strong>まで自分の言葉で書けており、思考の深さが評価のポイントです。
-              </p>
-            </div>
-          </div>
-        </details>
+        <p class="text-xs font-bold tracking-widest text-amber-700/80 mb-2">今回の評価</p>
+        <div class="text-8xl font-black leading-none mb-3 text-amber-800" role="img" aria-label="評価A">A</div>
+        <p class="font-bold text-xl text-amber-900 mb-1">分析・変容</p>
+        <p class="text-sm text-amber-800/70">メタ認知レベルの振り返りができています</p>
       </section>
 
       <!-- 振り返りセクション -->
@@ -259,54 +210,18 @@
       <section class="bg-white rounded-2xl card-shadow px-4 py-4 sm:px-6 sm:py-5 mb-6 sm:mb-8"
                aria-labelledby="heading-actions">
         <h2 id="heading-actions" class="section-heading">次回のアクション</h2>
-        <ul class="space-y-2">
-          <li>
-            <details class="collapsible bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
-              <summary class="flex items-center gap-3 px-4 py-3">
-                <span class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-white text-xs font-bold shrink-0" aria-hidden="true">1</span>
-                <span class="flex-1 text-sm font-semibold text-amber-900">係数を変えながらグラフを描く練習</span>
-                <svg class="chevron w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </summary>
-              <div class="detail-body">
-                <p class="text-xs text-amber-800/80 leading-relaxed px-4 pb-3 pl-[3.25rem]">
-                  係数 <em>a</em>・<em>b</em>・<em>c</em> を1つずつ変えながら、グラフの形がどう変わるか確かめてみよう。ノートに手描きするとより定着しやすい。
-                </p>
-              </div>
-            </details>
+        <ul class="space-y-1">
+          <li class="flex items-start gap-2.5 text-sm text-stone-700 py-2.5 border-b border-stone-100 last:border-0">
+            <span class="mt-0.5 text-amber-500 shrink-0" aria-hidden="true">→</span>
+            係数 <em>a</em>・<em>b</em>・<em>c</em> を変えながら自分でグラフを描く練習をする
           </li>
-          <li>
-            <details class="collapsible bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
-              <summary class="flex items-center gap-3 px-4 py-3">
-                <span class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-white text-xs font-bold shrink-0" aria-hidden="true">2</span>
-                <span class="flex-1 text-sm font-semibold text-amber-900">教科書の応用問題に挑戦する</span>
-                <svg class="chevron w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </summary>
-              <div class="detail-body">
-                <p class="text-xs text-amber-800/80 leading-relaxed px-4 pb-3 pl-[3.25rem]">
-                  教科書 p.78〜82 の応用問題に取り組もう。わからない問題は解答を見る前に5分は考えてみること。
-                </p>
-              </div>
-            </details>
+          <li class="flex items-start gap-2.5 text-sm text-stone-700 py-2.5 border-b border-stone-100 last:border-0">
+            <span class="mt-0.5 text-amber-500 shrink-0" aria-hidden="true">→</span>
+            教科書 p.78〜82 の応用問題に挑戦する
           </li>
-          <li>
-            <details class="collapsible bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
-              <summary class="flex items-center gap-3 px-4 py-3">
-                <span class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-white text-xs font-bold shrink-0" aria-hidden="true">3</span>
-                <span class="flex-1 text-sm font-semibold text-amber-900">疑問点を次回までにまとめておく</span>
-                <svg class="chevron w-4 h-4 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                </svg>
-              </summary>
-              <div class="detail-body">
-                <p class="text-xs text-amber-800/80 leading-relaxed px-4 pb-3 pl-[3.25rem]">
-                  練習中に出てきた「なぜ？」をメモしておこう。次回の授業の最初に先生に質問するチャンスがあります。
-                </p>
-              </div>
-            </details>
+          <li class="flex items-start gap-2.5 text-sm text-stone-700 py-2.5 border-b border-stone-100 last:border-0">
+            <span class="mt-0.5 text-amber-500 shrink-0" aria-hidden="true">→</span>
+            わからない点を次回の授業前にまとめておく
           </li>
         </ul>
       </section>

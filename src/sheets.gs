@@ -1,11 +1,17 @@
 // ============================================================
 // スプレッドシートの読み書き
 //
-// 想定するシートの列構成（1行目はヘッダー）:
-//   A: 氏名
-//   B: メールアドレス
-//   C: 振り返り文
-//   D: 送信済み  ← 処理フラグ管理に使用
+// Googleフォームが自動生成するシート列構成（1行目はヘッダー）:
+//   タイムスタンプ
+//   メールアドレス
+//   クラス
+//   出席番号
+//   名前
+//   本日の「事前動画」を観てきましたか？...
+//   理解度...
+//   【最重要】本日の授業振り返り...  ← 振り返り文（前方一致で取得）
+//   手書きの振り返りを写真などで送りたい場合はこちらへ...
+//   送信済み  ← 手動で追加が必要。処理フラグ管理に使用
 //
 // 送信済み列の値の意味:
 //   空白 … 未処理（送信対象）
@@ -27,22 +33,39 @@ function getStudentData(spreadsheetId, sheetName) {
 
   if (data.length < 2) return [];
 
-  const headers = data[0];
+  const headers = data[0].map(String);
+
+  // 完全一致で列インデックスを返す
   const col = (name) => headers.indexOf(name);
 
+  // 前方一致で列インデックスを返す（Googleフォームの長い質問文に対応）
+  const colStartsWith = (prefix) => headers.findIndex((h) => h.startsWith(prefix));
+
   // 必須列の存在チェック
-  ["氏名", "メールアドレス", "振り返り文", "送信済み"].forEach((name) => {
-    if (col(name) === -1) throw new Error(`列「${name}」がシートに見つかりません`);
+  const checks = [
+    { key: "名前",           idx: col("名前") },
+    { key: "メールアドレス", idx: col("メールアドレス") },
+    { key: "クラス",         idx: col("クラス") },
+    { key: "出席番号",       idx: col("出席番号") },
+    { key: "【最重要】本日の授業振り返り（振り返り文）", idx: colStartsWith("【最重要】") },
+    { key: "送信済み",       idx: col("送信済み") },
+  ];
+  checks.forEach(({ key, idx }) => {
+    if (idx === -1) throw new Error(`列「${key}」がシートに見つかりません。ヘッダー一覧: ${headers.join(" | ")}`);
   });
+
+  const reflectionCol = colStartsWith("【最重要】");
 
   return data
     .slice(1)
     .map((row, i) => ({
-      rowNumber: i + 2, // スプレッドシートの実際の行番号（ヘッダー=1行目のため+2）
-      name:       String(row[col("氏名")]).trim(),
-      email:      String(row[col("メールアドレス")]).trim(),
-      reflection: String(row[col("振り返り文")]).trim(),
-      sent:       String(row[col("送信済み")]).trim(),
+      rowNumber:     i + 2,
+      name:          String(row[col("名前")]).trim(),
+      email:         String(row[col("メールアドレス")]).trim(),
+      className:     String(row[col("クラス")]).trim(),
+      studentNumber: String(row[col("出席番号")]).replace(/\.0$/, "").trim(), // 数値の末尾 ".0" を除去
+      reflection:    String(row[reflectionCol]).trim(),
+      sent:          String(row[col("送信済み")]).trim(),
     }))
     // 空白のみ対象（"P"=処理中・"Y"=送信済み はスキップ）
     .filter((s) => s.email && s.reflection && s.sent === "");

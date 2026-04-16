@@ -10,7 +10,7 @@
 
 /**
  * 生徒1人分のHTMLメールを生成する
- * @param {Object} student - { name, email, reflection, className }
+ * @param {Object} student - { name, email, reflection, className, studentNumber }
  * @param {Object} ai     - evaluateReflection() の戻り値
  * @param {string} teacherName - 先生名
  * @returns {string} HTML文字列
@@ -54,7 +54,7 @@ function generateReportHtml(student, ai, teacherName) {
           <td style="padding:16px 20px 16px 12px;vertical-align:middle;">
             <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#78716c;">生徒名</p>
             <p style="margin:0 0 2px;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:700;color:#1c1917;">${escapeHtml_(student.name)}</p>
-            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#78716c;">${escapeHtml_(student.className || "")}</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#78716c;">${escapeHtml_(student.className || "")}　出席番号 ${escapeHtml_(student.studentNumber || "")}</p>
           </td>
         </tr>
       </table>

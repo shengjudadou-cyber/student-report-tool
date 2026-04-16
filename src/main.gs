@@ -6,8 +6,8 @@ const CONFIG = {
   // スプレッドシートのURL内の /d/XXXXX/edit の XXXXX 部分
   SPREADSHEET_ID: "ここにスプレッドシートIDを貼り付ける",
 
-  // データが入っているシート名
-  SHEET_NAME: "授業評価",
+  // データが入っているシート名（Googleフォームが自動生成するシート名）
+  SHEET_NAME: "フォームの回答 1",
 
   // 先生名（AIコメント生成とメール表示に使用）
   TEACHER_NAME: "生駒 先生",

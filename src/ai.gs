@@ -103,7 +103,30 @@ function callGeminiApi_(apiKey, prompt) {
 
     if (statusCode === 200) {
       const json = JSON.parse(response.getContentText());
-      return json.candidates[0].content.parts[0].text;
+
+      // candidates が空または安全フィルターによりブロックされた場合の分岐
+      const candidates = json.candidates;
+      if (!candidates || candidates.length === 0) {
+        const reason = json.promptFeedback?.blockReason || "不明";
+        throw new Error(`Gemini APIが応答を返しませんでした（ブロック理由: ${reason}）。プロンプトの内容を確認してください。`);
+      }
+
+      const candidate = candidates[0];
+      // finishReason が SAFETY のときは安全フィルターによる打ち切り
+      if (candidate.finishReason === "SAFETY") {
+        const ratings = (candidate.safetyRatings || [])
+          .filter((r) => r.probability !== "NEGLIGIBLE")
+          .map((r) => `${r.category}: ${r.probability}`)
+          .join(", ");
+        throw new Error(`Gemini APIが安全フィルターにより応答を打ち切りました（${ratings}）。振り返り文の内容を確認してください。`);
+      }
+
+      // content が存在しない場合（RECITATION / MAX_TOKENS など）
+      if (!candidate.content?.parts?.[0]?.text) {
+        throw new Error(`Gemini APIの応答にテキストが含まれていません（finishReason: ${candidate.finishReason || "不明"}）`);
+      }
+
+      return candidate.content.parts[0].text;
     }
 
     // 認証エラー・権限エラーはリトライしない

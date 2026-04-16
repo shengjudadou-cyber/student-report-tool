@@ -5,11 +5,18 @@
 //   A: 氏名
 //   B: メールアドレス
 //   C: 振り返り文
-//   D: 送信済み  ← 送信完了後に "Y" をセット（二重送信防止）
+//   D: 送信済み  ← 処理フラグ管理に使用
+//
+// 送信済み列の値の意味:
+//   空白 … 未処理（送信対象）
+//   "P"  … 処理中（GASが現在処理中、または前回エラーで中断）
+//            ※ 手動で空白に戻すと再送対象になる
+//   "Y"  … 送信完了（スキップ対象）
 // ============================================================
 
 /**
- * 未送信の生徒データを取得する
+ * 未送信（送信済み列が空白）の生徒データを取得する
+ * "P"（処理中）と "Y"（送信済み）はスキップする
  * @param {string} spreadsheetId
  * @param {string} sheetName
  * @returns {Array<Object>} 生徒データの配列
@@ -32,27 +39,43 @@ function getStudentData(spreadsheetId, sheetName) {
     .slice(1)
     .map((row, i) => ({
       rowNumber: i + 2, // スプレッドシートの実際の行番号（ヘッダー=1行目のため+2）
-      name: row[col("氏名")],
-      email: row[col("メールアドレス")],
-      reflection: row[col("振り返り文")],
-      sent: row[col("送信済み")],
+      name:       String(row[col("氏名")]).trim(),
+      email:      String(row[col("メールアドレス")]).trim(),
+      reflection: String(row[col("振り返り文")]).trim(),
+      sent:       String(row[col("送信済み")]).trim(),
     }))
-    .filter((s) => s.email && s.reflection && s.sent !== "Y");
+    // 空白のみ対象（"P"=処理中・"Y"=送信済み はスキップ）
+    .filter((s) => s.email && s.reflection && s.sent === "");
 }
 
 /**
- * 送信済みフラグを "Y" にセットする（二重送信防止）
+ * 処理中フラグ "P" をセットする
+ * メール送信前に呼び出すことで、処理中に中断しても再送を防ぐ
  * @param {string} spreadsheetId
  * @param {string} sheetName
- * @param {number} rowNumber - スプレッドシートの行番号
+ * @param {number} rowNumber
+ */
+function markAsProcessing(spreadsheetId, sheetName, rowNumber) {
+  setSentFlag_(spreadsheetId, sheetName, rowNumber, "P");
+}
+
+/**
+ * 送信完了フラグ "Y" をセットする
+ * @param {string} spreadsheetId
+ * @param {string} sheetName
+ * @param {number} rowNumber
  */
 function markAsSent(spreadsheetId, sheetName, rowNumber) {
+  setSentFlag_(spreadsheetId, sheetName, rowNumber, "Y");
+}
+
+function setSentFlag_(spreadsheetId, sheetName, rowNumber, value) {
   const sheet = getSheet_(spreadsheetId, sheetName);
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const sentCol = headers.indexOf("送信済み") + 1;
 
   if (sentCol === 0) throw new Error("列「送信済み」がシートに見つかりません");
-  sheet.getRange(rowNumber, sentCol).setValue("Y");
+  sheet.getRange(rowNumber, sentCol).setValue(value);
 }
 
 function getSheet_(spreadsheetId, sheetName) {

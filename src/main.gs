@@ -35,6 +35,10 @@ const CONFIG = {
 /**
  * 未送信の生徒を最大 BATCH_SIZE 人分処理してレポートを送信する。
  *
+ * 【対象の絞り込み】
+ *   トリガーは翌朝7時に実行されるため、「前日」に提出した生徒のみを対象にする。
+ *   例）授業が月曜 → 月曜中に提出 → 火曜7時のトリガーで処理。
+ *
  * 【二重送信の防止設計】
  *   送信前に「処理中」フラグ（"P"）をシートに書き込み、
  *   メール送信後に「送信済み」フラグ（"Y"）に更新する。
@@ -46,7 +50,12 @@ const CONFIG = {
  *   残りの生徒は次のトリガー実行（翌朝7時）で処理される。
  */
 function sendReports() {
-  const students = getStudentData(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME);
+  // トリガーは翌朝7時に実行 → 「昨日」提出分のみ対象
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  Logger.log(`対象日: ${Utilities.formatDate(yesterday, "Asia/Tokyo", "yyyy/MM/dd")}（昨日）`);
+
+  const students = getStudentData(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, yesterday);
 
   if (students.length === 0) {
     Logger.log("送信対象の生徒が見つかりませんでした（未送信かつ振り返り記入済みの行がありません）");
@@ -107,14 +116,19 @@ function sendReports() {
 // ============================================================
 
 /**
- * 動作確認用：1人目の生徒のレポートを自分のメールアドレスに送信する
+ * 動作確認用：本日提出した1人目の生徒のレポートを自分のメールアドレスに送信する
  * スプレッドシートの送信済みフラグは更新しない
  */
 function sendTestReport() {
-  const students = getStudentData(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME);
+  // テスト時は「今日」提出した生徒を対象にする
+  const today = new Date();
+  Logger.log(`=== sendTestReport 開始 ===`);
+  Logger.log(`対象日: ${Utilities.formatDate(today, "Asia/Tokyo", "yyyy/MM/dd")}（今日）`);
+
+  const students = getStudentData(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, today);
 
   if (students.length === 0) {
-    Logger.log("テスト対象の生徒が見つかりませんでした");
+    Logger.log("テスト対象の生徒が見つかりませんでした（本日提出・未送信の行がありません）");
     return;
   }
 

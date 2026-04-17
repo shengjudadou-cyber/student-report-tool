@@ -21,13 +21,15 @@
 // ============================================================
 
 /**
- * 未送信（送信済み列が空白）の生徒データを取得する
+ * 指定した日に振り返りを提出した未送信生徒のデータを取得する
  * "P"（処理中）と "Y"（送信済み）はスキップする
+ *
  * @param {string} spreadsheetId
  * @param {string} sheetName
+ * @param {Date} targetDate - フィルター対象の日付（その日に提出した行のみ返す）
  * @returns {Array<Object>} 生徒データの配列
  */
-function getStudentData(spreadsheetId, sheetName) {
+function getStudentData(spreadsheetId, sheetName, targetDate) {
   const sheet = getSheet_(spreadsheetId, sheetName);
   const data = sheet.getDataRange().getValues();
 
@@ -43,12 +45,13 @@ function getStudentData(spreadsheetId, sheetName) {
 
   // 必須列の存在チェック
   const checks = [
-    { key: "名前",           idx: col("名前") },
-    { key: "メールアドレス", idx: col("メールアドレス") },
-    { key: "クラス",         idx: col("クラス") },
-    { key: "出席番号",       idx: col("出席番号") },
+    { key: "タイムスタンプ",   idx: col("タイムスタンプ") },
+    { key: "名前",             idx: col("名前") },
+    { key: "メールアドレス",   idx: col("メールアドレス") },
+    { key: "クラス",           idx: col("クラス") },
+    { key: "出席番号",         idx: col("出席番号") },
     { key: "【最重要】本日の授業振り返り（振り返り文）", idx: colStartsWith("【最重要】") },
-    { key: "送信済み",       idx: col("送信済み") },
+    { key: "送信済み",         idx: col("送信済み") },
   ];
   checks.forEach(({ key, idx }) => {
     if (idx === -1) throw new Error(`列「${key}」がシートに見つかりません。ヘッダー一覧: ${headers.join(" | ")}`);
@@ -60,15 +63,36 @@ function getStudentData(spreadsheetId, sheetName) {
     .slice(1)
     .map((row, i) => ({
       rowNumber:     i + 2,
+      timestamp:     row[col("タイムスタンプ")],
       name:          String(row[col("名前")]).trim(),
       email:         String(row[col("メールアドレス")]).trim(),
       className:     String(row[col("クラス")]).trim(),
-      studentNumber: String(row[col("出席番号")]).replace(/\.0$/, "").trim(), // 数値の末尾 ".0" を除去
+      studentNumber: String(row[col("出席番号")]).replace(/\.0$/, "").trim(),
       reflection:    String(row[reflectionCol]).trim(),
       sent:          String(row[col("送信済み")]).trim(),
     }))
-    // 空白のみ対象（"P"=処理中・"Y"=送信済み はスキップ）
-    .filter((s) => s.email && s.reflection && s.sent === "");
+    .filter((s) => {
+      // 必須フィールドチェックと送信済みスキップ
+      if (!s.email || !s.reflection || s.sent !== "") return false;
+
+      // 提出日が targetDate と同じ日かチェック
+      if (targetDate) {
+        const submitDate = new Date(s.timestamp);
+        return isSameDay_(submitDate, targetDate);
+      }
+      return true;
+    });
+}
+
+/**
+ * 2つのDateが同じ日付かどうかを判定する（時刻は無視）
+ */
+function isSameDay_(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth()    === b.getMonth()    &&
+    a.getDate()     === b.getDate()
+  );
 }
 
 /**

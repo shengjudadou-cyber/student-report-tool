@@ -57,19 +57,22 @@ function getStudentData(spreadsheetId, sheetName, targetDate) {
     if (idx === -1) throw new Error(`列「${key}」がシートに見つかりません。ヘッダー一覧: ${headers.join(" | ")}`);
   });
 
-  const reflectionCol = colStartsWith("【最重要】");
+  const reflectionCol  = colStartsWith("【最重要】");
+  const photoCol       = colStartsWith("手書きの振り返りを写真");
 
   return data
     .slice(1)
     .map((row, i) => ({
-      rowNumber:     i + 2,
-      timestamp:     row[col("タイムスタンプ")],
-      name:          String(row[col("名前")]).trim(),
-      email:         String(row[col("メールアドレス")]).trim(),
-      className:     String(row[col("クラス")]).trim(),
-      studentNumber: String(row[col("出席番号")]).replace(/\.0$/, "").trim(),
-      reflection:    String(row[reflectionCol]).trim(),
-      sent:          String(row[col("送信済み")]).trim(),
+      rowNumber:      i + 2,
+      timestamp:      row[col("タイムスタンプ")],
+      name:           String(row[col("名前")]).trim(),
+      email:          String(row[col("メールアドレス")]).trim(),
+      className:      String(row[col("クラス")]).trim(),
+      studentNumber:  String(row[col("出席番号")]).replace(/\.0$/, "").trim(),
+      reflection:     String(row[reflectionCol]).trim(),
+      sent:           String(row[col("送信済み")]).trim(),
+      // 振り返り本文が「写真」など手書き提出を示すキーワードの場合は手書きと判定
+      isHandwritten:  /^(写真|photo|画像|pic)$/i.test(String(row[reflectionCol]).trim()),
     }))
     .filter((s) => {
       // 必須フィールドチェックと送信済みスキップ
@@ -93,6 +96,53 @@ function isSameDay_(a, b) {
     a.getMonth()    === b.getMonth()    &&
     a.getDate()     === b.getDate()
   );
+}
+
+/**
+ * 手書き提出フラグ "手書き" をセットする
+ * 先生が手動で評価を入力するまで自動送信をスキップする
+ */
+function markAsHandwritten(spreadsheetId, sheetName, rowNumber) {
+  setSentFlag_(spreadsheetId, sheetName, rowNumber, "手書き");
+}
+
+/**
+ * 手書き提出のうち、先生が「評価」列に A/B/C を入力済みの行を返す
+ * sendManualReports() から呼び出される
+ * @returns {Array<Object>} 生徒データ（gradeManual フィールド付き）
+ */
+function getHandwrittenStudents(spreadsheetId, sheetName) {
+  const sheet = getSheet_(spreadsheetId, sheetName);
+  const data  = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+
+  const headers      = data[0].map(String);
+  const col          = (name) => headers.indexOf(name);
+  const colStartsWith = (prefix) => headers.findIndex((h) => h.startsWith(prefix));
+
+  const reflectionCol   = colStartsWith("【最重要】");
+  const gradeCol        = col("評価");
+  const commentCol      = col("先生コメント");
+
+  if (gradeCol === -1) {
+    throw new Error("列「評価」が見つかりません。自動送信を一度実行するか、手動でヘッダーを追加してください。");
+  }
+
+  return data
+    .slice(1)
+    .map((row, i) => ({
+      rowNumber:     i + 2,
+      name:          String(row[col("名前")]).trim(),
+      email:         String(row[col("メールアドレス")]).trim(),
+      className:     String(row[col("クラス")]).trim(),
+      studentNumber: String(row[col("出席番号")]).replace(/\.0$/, "").trim(),
+      reflection:    reflectionCol !== -1 ? String(row[reflectionCol]).trim() : "",
+      sent:          String(row[col("送信済み")]).trim(),
+      gradeManual:   String(row[gradeCol]).trim().toUpperCase(),
+      commentManual: commentCol !== -1 ? String(row[commentCol]).trim() : "",
+    }))
+    // 手書きフラグがあり、評価列に A/B/C が入力済みの行のみ
+    .filter((s) => s.sent === "手書き" && ["A", "B", "C"].includes(s.gradeManual) && s.email);
 }
 
 /**

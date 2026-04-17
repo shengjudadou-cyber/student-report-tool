@@ -68,15 +68,23 @@ function sendReports() {
 
   let successCount = 0;
   let errorCount = 0;
+  let apiCallIndex = 0; // 手書きスキップ分を除いたAPI呼び出し回数
 
   batch.forEach((student, index) => {
-    // 2人目以降はAPI呼び出し前に待機（レート制限対策）
-    if (index > 0) {
+    // 手書き提出はAPIを呼ばないので待機不要
+    if (!student.isHandwritten && apiCallIndex > 0) {
       Logger.log(`レート制限対策: ${CONFIG.API_INTERVAL_MS / 1000}秒待機中...`);
       Utilities.sleep(CONFIG.API_INTERVAL_MS);
     }
 
     try {
+      // 手書き提出の場合はスキップして先生の手動評価を待つ
+      if (student.isHandwritten) {
+        markAsHandwritten(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber);
+        Logger.log(`✏ 手書き提出のためスキップ: ${student.name}（スプレッドシートの「評価」列に A/B/C を入力後、sendManualReports を実行してください）`);
+        return;
+      }
+
       // 1. 処理中フラグを立てる（ここから先でクラッシュしても再送しない）
       markAsProcessing(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber);
 
@@ -98,6 +106,7 @@ function sendReports() {
 
       Logger.log(`✓ 送信完了: ${student.name} <${student.email}> → グレード ${ai.grade}`);
       successCount++;
+      apiCallIndex++;
     } catch (e) {
       Logger.log(`✗ 送信失敗: ${student.name} - ${e.message}`);
       // 処理中フラグ（"P"）はそのまま残す → 次回実行でもスキップされる
@@ -147,6 +156,86 @@ function sendTestReport() {
   sendEmail(myEmail, `[テスト] ${CONFIG.EMAIL_SUBJECT}`, html, CONFIG.SENDER_NAME);
 
   Logger.log(`テスト送信完了 → ${myEmail}（対象生徒: ${student.name}、グレード: ${ai.grade}）`);
+}
+
+// ============================================================
+// 手動送信（手書き提出生徒への対応）
+// ============================================================
+
+/**
+ * 手書き提出の生徒にレポートを手動送信する
+ *
+ * 【使い方】
+ *   1. sendReports が実行されると、手書き提出の生徒の「送信済み」列が「手書き」になる
+ *   2. スプレッドシートの「評価」列に A / B / C を手入力する
+ *      ※「先生コメント」列にコメントを書いておくと、そのコメントがレポートに使われる
+ *        （空欄の場合はルーブリックの説明文が代わりに表示される）
+ *   3. この関数を実行する → 評価が入力された生徒にレポートが届く
+ */
+function sendManualReports() {
+  const students = getHandwrittenStudents(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME);
+
+  if (students.length === 0) {
+    Logger.log("手動送信の対象がいません（「送信済み」列が「手書き」かつ「評価」列が入力済みの行がありません）");
+    return;
+  }
+
+  Logger.log(`手動送信対象: ${students.length} 名`);
+  let successCount = 0;
+  let errorCount = 0;
+
+  students.forEach((student, index) => {
+    try {
+      // ルーブリックからメタ情報を取得
+      const rubricEntry = RUBRIC[student.gradeManual];
+
+      // ai オブジェクトを手動評価データから構築
+      const ai = {
+        grade:            student.gradeManual,
+        gradeLabel:       rubricEntry.label,
+        gradeDescription: rubricEntry.description,
+        teacherComment:   student.commentManual || rubricEntry.description,
+        metCriteria:      rubricEntry.criteria,
+        growthPoints:     rubricEntry.growthPoints,
+        // nextActions は growthPoints から生成（3つに満たない場合は汎用を追加）
+        nextActions: buildNextActions_(rubricEntry),
+      };
+
+      Logger.log(`[${index + 1}/${students.length}] 手動レポート送信中: ${student.name}（評価: ${ai.grade}）`);
+
+      markAsProcessing(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber);
+      const html = generateReportHtml(student, ai, CONFIG.TEACHER_NAME);
+      sendEmail(student.email, CONFIG.EMAIL_SUBJECT, html, CONFIG.SENDER_NAME);
+      markAsSent(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber);
+      writeAiResult(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber, ai);
+
+      Logger.log(`✓ 送信完了: ${student.name} <${student.email}>`);
+      successCount++;
+    } catch (e) {
+      Logger.log(`✗ 送信失敗: ${student.name} - ${e.message}`);
+      errorCount++;
+    }
+  });
+
+  Logger.log(`===== 手動送信完了: 成功 ${successCount} 件 / 失敗 ${errorCount} 件 =====`);
+}
+
+/**
+ * growthPoints を nextActions 形式（3件）に変換する
+ * 足りない場合は汎用アクションで補う
+ */
+function buildNextActions_(rubricEntry) {
+  const actions = rubricEntry.growthPoints.map((g) => ({ title: g.title, detail: g.detail }));
+  const generic = [
+    { title: "次の授業も振り返りを書く",     detail: "継続的な振り返りが深い理解につながります" },
+    { title: "疑問点を授業前にメモする",      detail: "「何がわからないか」を意識すると質問しやすくなります" },
+    { title: "今日の学びを誰かに説明してみる", detail: "言葉にして説明できると理解が深まります" },
+  ];
+  let i = 0;
+  while (actions.length < 3) {
+    actions.push(generic[i++ % generic.length]);
+  }
+  return actions.slice(0, 3);
 }
 
 // ============================================================

@@ -93,6 +93,9 @@ function sendReports() {
       // 5. 送信済みフラグに更新（"P" → "Y"）
       markAsSent(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber);
 
+      // 6. AI評価結果をスプレッドシートに記録
+      writeAiResult(CONFIG.SPREADSHEET_ID, CONFIG.SHEET_NAME, student.rowNumber, ai);
+
       Logger.log(`✓ 送信完了: ${student.name} <${student.email}> → グレード ${ai.grade}`);
       successCount++;
     } catch (e) {

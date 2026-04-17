@@ -116,6 +116,42 @@ function markAsSent(spreadsheetId, sheetName, rowNumber) {
   setSentFlag_(spreadsheetId, sheetName, rowNumber, "Y");
 }
 
+/**
+ * AI評価結果をスプレッドシートに記録する
+ * 「評価」「先生コメント」「次回アクション」「送信日時」列が存在しない場合は自動で追加する
+ *
+ * @param {string} spreadsheetId
+ * @param {string} sheetName
+ * @param {number} rowNumber
+ * @param {Object} ai - evaluateReflection() の戻り値
+ */
+function writeAiResult(spreadsheetId, sheetName, rowNumber, ai) {
+  const sheet = getSheet_(spreadsheetId, sheetName);
+  const headerRange = sheet.getRange(1, 1, 1, sheet.getLastColumn());
+  const headers = headerRange.getValues()[0].map(String);
+
+  // 書き込む列の定義（列名 → 値）
+  const columns = [
+    { name: "評価",         value: ai.grade },
+    { name: "先生コメント", value: ai.teacherComment },
+    { name: "次回アクション", value: ai.nextActions.map((a, i) => `${i + 1}. ${a.title}：${a.detail}`).join("\n") },
+    { name: "送信日時",     value: Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM/dd HH:mm") },
+  ];
+
+  columns.forEach(({ name, value }) => {
+    let colIdx = headers.indexOf(name);
+
+    // 列が存在しない場合は末尾に自動追加
+    if (colIdx === -1) {
+      colIdx = headers.length;
+      sheet.getRange(1, colIdx + 1).setValue(name);
+      headers.push(name);
+    }
+
+    sheet.getRange(rowNumber, colIdx + 1).setValue(value);
+  });
+}
+
 function setSentFlag_(spreadsheetId, sheetName, rowNumber, value) {
   const sheet = getSheet_(spreadsheetId, sheetName);
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
